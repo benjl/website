@@ -5,21 +5,31 @@ import {
   Injectable,
   NotFoundException
 } from '@nestjs/common';
-import { MapStatus, MapTestInviteState } from '@momentum/constants';
+import {
+  MapStatusNew,
+  MapTestingRequestState,
+  NotificationType
+} from '@momentum/constants';
 import { difference } from '@momentum/util-fn';
 import {
   ExtendedPrismaService,
   ExtendedPrismaServiceTransaction
 } from '../database/prisma.extension';
 import { EXTENDED_PRISMA_SERVICE } from '../database/db.constants';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
-export class MapTestInviteService {
+export class MapTestingRequestService {
   constructor(
-    @Inject(EXTENDED_PRISMA_SERVICE) private readonly db: ExtendedPrismaService
+    @Inject(EXTENDED_PRISMA_SERVICE) private readonly db: ExtendedPrismaService,
+    private readonly notifsService: NotificationsService
   ) {}
 
-  async updateTestInvites(mapID: number, requestIDs: number[], userID: number) {
+  async updateTestingRequests(
+    mapID: number,
+    requestIDs: number[],
+    userID: number
+  ) {
     const map = await this.db.mMap.findUnique({ where: { id: mapID } });
 
     if (!map) {
@@ -30,39 +40,51 @@ export class MapTestInviteService {
       throw new ForbiddenException('User is not the submitter of the map');
     }
 
-    if (map.status !== MapStatus.PRIVATE_TESTING) {
+    if (map.status !== MapStatusNew.PRIVATE_TESTING) {
       throw new ForbiddenException('Map is not in private testing');
     }
 
     await this.createOrUpdatePrivateTestingInvites(this.db, mapID, requestIDs);
   }
 
-  async testInviteResponse(mapID: number, userID: number, accept: boolean) {
+  async testingRequestResponse(mapID: number, userID: number, accept: boolean) {
     const map = await this.db.mMap.findUnique({
       where: { id: mapID },
-      include: { testInvites: true }
+      include: { testingRequests: true }
     });
 
     if (!map) {
       throw new NotFoundException('Map does not exist');
     }
 
-    if (map.status !== MapStatus.PRIVATE_TESTING) {
+    if (map.status !== MapStatusNew.PRIVATE_TESTING) {
       throw new ForbiddenException('Map is not in private testing');
     }
 
-    const matchingRequest = map.testInvites.find((t) => t.userID === userID);
+    const matchingRequest = map.testingRequests.find(
+      (t) => t.userID === userID
+    );
 
     if (!matchingRequest) {
-      throw new NotFoundException('User does not have a test invite for map');
+      throw new NotFoundException(
+        'User does not have a testing request for map'
+      );
     }
 
-    await this.db.mapTestInvite.update({
+    await this.db.mapTestingRequest.update({
       where: { mapID_userID: { mapID, userID } },
       data: {
         state: accept
-          ? MapTestInviteState.ACCEPTED
-          : MapTestInviteState.DECLINED
+          ? MapTestingRequestState.ACCEPTED
+          : MapTestingRequestState.DECLINED
+      }
+    });
+
+    await this.db.notification.deleteMany({
+      where: {
+        targetUserID: userID,
+        mapID: mapID,
+        type: NotificationType.MAP_TESTING_REQUEST
       }
     });
   }
@@ -85,7 +107,7 @@ export class MapTestInviteService {
       throw new BadRequestException('Invalid userID in testing invites');
     }
 
-    const existingInvites = await tx.mapTestInvite.findMany({
+    const existingInvites = await tx.mapTestingRequest.findMany({
       where: { mapID },
       select: { userID: true }
     });
@@ -94,17 +116,37 @@ export class MapTestInviteService {
     // We assume some invites may exist already, then add invites for any users
     // on new invites but not existing invites, and remove for any users on
     // existing invites but not new invites.
-    await tx.mapTestInvite.createMany({
+    await tx.mapTestingRequest.createMany({
       data: difference(userIDs, existingInviteUserIDs).map((userID) => ({
         mapID,
         userID,
-        state: MapTestInviteState.UNREAD
+        state: MapTestingRequestState.UNREAD
       }))
     });
 
-    await tx.mapTestInvite.deleteMany({
+    await tx.mapTestingRequest.deleteMany({
       where: {
         userID: { in: difference(existingInviteUserIDs, userIDs) }
+      }
+    });
+
+    const map = await tx.mMap.findUnique({ where: { id: mapID } });
+
+    await this.notifsService.sendNotifications(
+      difference(userIDs, existingInviteUserIDs),
+      {
+        type: NotificationType.MAP_TESTING_REQUEST,
+        mapID: mapID,
+        requesterID: map.submitterID
+      },
+      tx
+    );
+
+    await tx.notification.deleteMany({
+      where: {
+        targetUserID: { in: difference(existingInviteUserIDs, userIDs) },
+        mapID: mapID,
+        type: NotificationType.MAP_TESTING_REQUEST
       }
     });
   }

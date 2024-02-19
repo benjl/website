@@ -35,6 +35,7 @@ import {
   MapStatus,
   MapTestInviteState,
   MAX_CREDITS_EXCEPT_TESTERS,
+  NotificationType,
   Role,
   TrackType
 } from '@momentum/constants';
@@ -1995,7 +1996,7 @@ describe('Maps Part 2', () => {
         });
       });
 
-      afterEach(() => db.cleanup('mMap', 'user'));
+      afterEach(() => db.cleanup('mMap', 'user', 'notification'));
 
       it('should create MapTestInvites', async () => {
         await req.put({
@@ -2085,6 +2086,59 @@ describe('Maps Part 2', () => {
         ]);
       });
 
+      it('should create map testing request notifications for users', async () => {
+        await req.put({
+          url: `maps/${map.id}/testRequest`,
+          status: 204,
+          body: { userIDs: [u3.id, u4.id] },
+          token: u1Token
+        });
+
+        const notifs = await prisma.notification.findMany({
+          where: { type: NotificationType.MAP_TESTING_REQUEST }
+        });
+        expect(notifs).toMatchObject([
+          {
+            targetUserID: u3.id,
+            type: NotificationType.MAP_TESTING_REQUEST,
+            mapID: map.id,
+            userID: map.submitterID
+          },
+          {
+            targetUserID: u4.id,
+            type: NotificationType.MAP_TESTING_REQUEST,
+            mapID: map.id,
+            userID: map.submitterID
+          }
+        ]);
+      });
+
+      it('should delete map testing request notifications if users are uninvited', async () => {
+        await req.put({
+          url: `maps/${map.id}/testRequest`,
+          status: 204,
+          body: { userIDs: [u3.id, u4.id] },
+          token: u1Token
+        });
+        await req.put({
+          url: `maps/${map.id}/testRequest`,
+          status: 204,
+          body: { userIDs: [u4.id] },
+          token: u1Token
+        });
+        const notifs = await prisma.notification.findMany({
+          where: { type: NotificationType.MAP_TESTING_REQUEST }
+        });
+        expect(notifs).toMatchObject([
+          {
+            targetUserID: u4.id,
+            type: NotificationType.MAP_TESTING_REQUEST,
+            mapID: map.id,
+            userID: map.submitterID
+          }
+        ]);
+      });
+
       it('should 404 in the map does not exist', () =>
         req.put({
           url: `maps/${NULL_ID}/testInvite`,
@@ -2141,19 +2195,31 @@ describe('Maps Part 2', () => {
 
   describe('maps/{mapID}/testInviteResponse', () => {
     describe('PATCH', () => {
-      let user, token, map;
+      let user, user2, token, map;
       beforeEach(async () => {
-        [user, token] = await db.createAndLoginUser();
+        [[user, token], [user2]] = await Promise.all([
+          db.createAndLoginUser(),
+          db.createAndLoginUser()
+        ]);
 
         map = await db.createMap({
           status: MapStatus.PRIVATE_TESTING,
+          submitter: { connect: { id: user2.id } },
           testInvites: {
             create: { userID: user.id, state: MapTestInviteState.UNREAD }
           }
         });
+        await prisma.notification.create({
+          data: {
+            targetUserID: user.id,
+            type: NotificationType.MAP_TESTING_REQUEST,
+            mapID: map.id,
+            userID: map.submitterID
+          }
+        });
       });
 
-      afterEach(() => db.cleanup('mMap', 'user'));
+      afterEach(() => db.cleanup('mMap', 'user', 'notification'));
 
       it('should successfully accept a test invite', async () => {
         await req.patch({
@@ -2176,6 +2242,17 @@ describe('Maps Part 2', () => {
           body: { accept: false },
           token
         }));
+
+      it('should delete the notification corresponding to the testing request', async () => {
+        await req.patch({
+          url: `maps/${map.id}/testRequestResponse`,
+          status: 204,
+          body: { accept: true },
+          token
+        });
+        const notifs = await prisma.notification.findMany();
+        expect(notifs).toHaveLength(0);
+      });
 
       it('should 404 if the user does not have a test invite', async () => {
         await prisma.mapTestInvite.deleteMany();
