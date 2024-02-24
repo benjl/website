@@ -29,6 +29,7 @@ export type ReviewPostedData = {
   type: NotificationType.REVIEW_POSTED;
   reviewerID: number;
   mapID: number;
+  reviewID: number;
 };
 export type NotificationData =
   | AnnouncementData
@@ -48,7 +49,8 @@ export class NotificationsService {
       include: {
         user: true,
         map: true,
-        run: true
+        run: true,
+        review: true
       }
     });
     return dbResponse.map((x) => DtoFactory(NotificationDto, x));
@@ -106,6 +108,7 @@ export class NotificationsService {
       case NotificationType.REVIEW_POSTED:
         newNotif.userID = data.reviewerID;
         newNotif.mapID = data.mapID;
+        newNotif.reviewID = data.reviewID;
         break;
       default:
         throw new Error(
