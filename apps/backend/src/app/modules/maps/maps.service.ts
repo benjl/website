@@ -1240,10 +1240,7 @@ export class MapsService {
       newStatus === MapStatusNew.APPROVED
     ) {
       await this.updateStatusFromFAToApproved(tx, map, dto);
-    } else if (
-      oldStatus === MapStatusNew.PRIVATE_TESTING &&
-      newStatus !== MapStatusNew.PRIVATE_TESTING
-    ) {
+    } else if ( oldStatus === MapStatusNew.PRIVATE_TESTING ) {
       await this.updateStatusFromPrivate(tx, map);
     }
 

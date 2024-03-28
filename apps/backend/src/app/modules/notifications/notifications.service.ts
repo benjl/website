@@ -4,7 +4,7 @@ import {
   ExtendedPrismaService,
   ExtendedPrismaServiceTransaction
 } from '../database/prisma.extension';
-import { NotificationDto, DtoFactory } from '../../dto';
+import {NotificationDto, DtoFactory, NotifsMarkAsReadQueryDto} from '../../dto';
 import { NotificationType } from '@momentum/constants';
 import { Prisma } from '@prisma/client';
 
@@ -44,6 +44,9 @@ export class NotificationsService {
     @Inject(EXTENDED_PRISMA_SERVICE) private readonly db: ExtendedPrismaService
   ) {}
   async getNotifications(userID: number): Promise<NotificationDto[]> {
+    // Only a couple of these fields are on a notification at a time
+    // However, the include will only fetch those fields if they exist
+    // This is faster than explicitly checking
     const dbResponse = await this.db.notification.findMany({
       where: { targetUserID: userID },
       include: {
@@ -58,28 +61,29 @@ export class NotificationsService {
 
   async markAsRead(
     userID: number,
-    notifIDs: number[],
-    all: boolean
+    query: NotifsMarkAsReadQueryDto
   ): Promise<void> {
-    for (const notifID of notifIDs) {
-      if (Number.isNaN(notifID))
-        throw new BadRequestException('Invalid notification IDs');
+    console.log(JSON.stringify(query));
+    if (query.all)
+      await this.db.notification.deleteMany({
+        where: {
+          targetUserID: userID,
+          type: { not: NotificationType.MAP_TESTING_REQUEST }
+        }
+      });
+    else {
+      if (!query.notifIDs) throw new BadRequestException('notifIDs required if all is false');
+      for (const notifID of query.notifIDs)
+        if (Number.isNaN(notifID)) throw new BadRequestException('notifIDs must contain numbers only');
+      await this.db.notification.deleteMany({
+        where: {
+          id: { in: query.notifIDs },
+          targetUserID: userID,
+          type: { not: NotificationType.MAP_TESTING_REQUEST }
+        }
+      });
     }
-    if (all)
-      await this.db.notification.deleteMany({
-        where: {
-          targetUserID: userID,
-          type: { not: NotificationType.MAP_TESTING_REQUEST }
-        }
-      });
-    else
-      await this.db.notification.deleteMany({
-        where: {
-          id: { in: notifIDs },
-          targetUserID: userID,
-          type: { not: NotificationType.MAP_TESTING_REQUEST }
-        }
-      });
+
   }
 
   async sendNotifications(
@@ -87,8 +91,7 @@ export class NotificationsService {
     data: NotificationData,
     tx: ExtendedPrismaServiceTransaction = this.db
   ): Promise<void> {
-    const newNotif: Prisma.NotificationCreateManyInput = {
-      targetUserID: -1,
+    const newNotif: Partial<Prisma.NotificationCreateManyInput> = {
       type: data.type
     };
     switch (data.type) {
@@ -117,7 +120,7 @@ export class NotificationsService {
     }
 
     await tx.notification.createMany({
-      data: toUserIDs.map((userID) => ({ ...newNotif, targetUserID: userID }))
+      data: toUserIDs.map((userID) => ({ ...newNotif, targetUserID: userID } as Prisma.NotificationCreateManyInput))
     });
   }
 }

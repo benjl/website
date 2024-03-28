@@ -83,7 +83,7 @@ export class MapTestingRequestService {
     await this.db.notification.deleteMany({
       where: {
         targetUserID: userID,
-        mapID: mapID,
+        mapID,
         type: NotificationType.MAP_TESTING_REQUEST
       }
     });

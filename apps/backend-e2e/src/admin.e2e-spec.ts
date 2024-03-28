@@ -1709,9 +1709,8 @@ describe('Admin', () => {
       });
 
       afterAll(() =>
-        db.cleanup('leaderboardRun', 'user', 'adminActivity', 'notification')
+        db.cleanup('leaderboardRun', 'user', 'adminActivity')
       );
-
       afterEach(() =>
         Promise.all([
           db.cleanup('mMap', 'adminActivity', 'notification'),

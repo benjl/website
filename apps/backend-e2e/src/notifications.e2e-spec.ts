@@ -143,6 +143,7 @@ describe('Notifications', () => {
         }
       ]);
     });
+
     it('should not delete a map testing request notification', async () => {
       const notif = await prisma.notification.findFirst({
         where: {
@@ -221,7 +222,7 @@ describe('Notifications', () => {
       await req.del({
         url: 'notifications/markAsRead',
         status: 204,
-        query: { notifIDs: 'all' },
+        query: { all: true },
         token: userToken
       });
 
@@ -251,7 +252,7 @@ describe('Notifications', () => {
       await req.del({
         url: 'notifications/markAsRead',
         status: 400,
-        query: { notifIDs: 'awl' },
+        query: { notifIDs: 'guh' },
         token: userToken
       });
       await req.del({

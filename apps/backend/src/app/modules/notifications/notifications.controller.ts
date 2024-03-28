@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Controller,
   Delete,
   Get,
@@ -18,7 +17,7 @@ import {
 } from '@nestjs/swagger';
 import { NotificationsService } from './notifications.service';
 import { LoggedInUser } from '../../decorators';
-import { NotificationDto } from '../../dto';
+import {NotificationDto, NotifsMarkAsReadQueryDto} from '../../dto';
 
 @Controller('notifications')
 @ApiTags('Notifications')
@@ -45,20 +44,11 @@ export class NotificationsController {
   @ApiNoContentResponse({
     description: 'Notifications marked as read successfully'
   })
-  @ApiBadRequestResponse({ description: 'Invalid body' })
+  @ApiBadRequestResponse({ description: 'Invalid notifIDs' })
   async markNotificationsAsRead(
     @LoggedInUser('id') userID: number,
-    @Query('notifIDs') notifIDs: string
+    @Query() query: NotifsMarkAsReadQueryDto
   ): Promise<void> {
-    if (!notifIDs) throw new BadRequestException('Invalid notification IDs');
-    if (notifIDs === 'all')
-      return this.notifsService.markAsRead(userID, [], true);
-    else {
-      return this.notifsService.markAsRead(
-        userID,
-        notifIDs.split(',').map((x) => Number.parseInt(x)),
-        false
-      );
-    }
+    return this.notifsService.markAsRead(userID, query);
   }
 }
