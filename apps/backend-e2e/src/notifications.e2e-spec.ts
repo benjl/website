@@ -7,7 +7,7 @@ import {
   setupE2ETestEnvironment,
   teardownE2ETestEnvironment
 } from './support/environment';
-import { MapStatusNew, NotificationType } from '@momentum/constants';
+import { MapStatus, NotificationType } from '@momentum/constants';
 import { NotificationDto } from 'apps/backend/src/app/dto';
 
 describe('Notifications', () => {
@@ -30,7 +30,7 @@ describe('Notifications', () => {
     map = await db.createMap({
       name: 'the_map_hard_version',
       submitter: { connect: { id: user2.id } },
-      status: MapStatusNew.PRIVATE_TESTING
+      status: MapStatus.PRIVATE_TESTING
     });
     // In the future, announcements won't ever be in db
     // they will just get pushed directly to user
@@ -54,7 +54,7 @@ describe('Notifications', () => {
         },
         {
           targetUserID: user.id,
-          type: NotificationType.MAP_TESTING_REQUEST,
+          type: NotificationType.MAP_TEST_INVITE,
           mapID: map.id,
           userID: user2.id
         },
@@ -95,7 +95,7 @@ describe('Notifications', () => {
         },
         {
           targetUserID: user.id,
-          type: NotificationType.MAP_TESTING_REQUEST,
+          type: NotificationType.MAP_TEST_INVITE,
           mapID: map.id,
           userID: user2.id
         }
@@ -137,17 +137,18 @@ describe('Notifications', () => {
         },
         {
           targetUserID: user.id,
-          type: NotificationType.MAP_TESTING_REQUEST,
+          type: NotificationType.MAP_TEST_INVITE,
           mapID: map.id,
           userID: user2.id
         }
       ]);
     });
+
     it('should not delete a map testing request notification', async () => {
       const notif = await prisma.notification.findFirst({
         where: {
           targetUserID: user.id,
-          type: NotificationType.MAP_TESTING_REQUEST
+          type: NotificationType.MAP_TEST_INVITE
         }
       });
 
@@ -182,7 +183,7 @@ describe('Notifications', () => {
         },
         {
           targetUserID: user.id,
-          type: NotificationType.MAP_TESTING_REQUEST,
+          type: NotificationType.MAP_TEST_INVITE,
           mapID: map.id,
           userID: user2.id
         }
@@ -221,7 +222,7 @@ describe('Notifications', () => {
       await req.del({
         url: 'notifications/markAsRead',
         status: 204,
-        query: { notifIDs: 'all' },
+        query: { all: true },
         token: userToken
       });
 
@@ -234,14 +235,14 @@ describe('Notifications', () => {
       expect(notifs).toMatchObject([
         {
           targetUserID: user.id,
-          type: NotificationType.MAP_TESTING_REQUEST,
+          type: NotificationType.MAP_TEST_INVITE,
           mapID: map.id,
           userID: user2.id
         }
       ]);
     });
 
-    it('should 400 if not given a list of notification ids or "all"', async () => {
+    it('should 400 if not given the correct query', async () => {
       await req.del({
         url: 'notifications/markAsRead',
         status: 400,
@@ -251,7 +252,7 @@ describe('Notifications', () => {
       await req.del({
         url: 'notifications/markAsRead',
         status: 400,
-        query: { notifIDs: 'awl' },
+        query: { notifIDs: 'guh' },
         token: userToken
       });
       await req.del({

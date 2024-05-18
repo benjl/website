@@ -90,7 +90,7 @@ describe('NotificationsService', () => {
   it('should send a MAP_TESTING_REQUEST notification', async () => {
     const toUserID = 1;
     const data: NotificationData = {
-      type: NotificationType.MAP_TESTING_REQUEST,
+      type: NotificationType.MAP_TEST_INVITE,
       requesterID: 119,
       mapID: 456
     };

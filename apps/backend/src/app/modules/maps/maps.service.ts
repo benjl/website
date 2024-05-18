@@ -1301,10 +1301,7 @@ export class MapsService {
       newStatus === MapStatus.APPROVED
     ) {
       await this.updateStatusFromFAToApproved(tx, map, dto);
-    } else if (
-      oldStatus === MapStatusNew.PRIVATE_TESTING &&
-      newStatus !== MapStatusNew.PRIVATE_TESTING
-    ) {
+    } else if (oldStatus === MapStatus.PRIVATE_TESTING) {
       await this.updateStatusFromPrivate(tx, map);
     }
 
@@ -1544,11 +1541,11 @@ export class MapsService {
     tx: ExtendedPrismaServiceTransaction,
     map: MapWithSubmission
   ) {
-    await tx.mapTestingRequest.deleteMany({
-      where: { mapID: map.id, state: MapTestingRequestState.UNREAD }
+    await tx.mapTestInvite.deleteMany({
+      where: { mapID: map.id, state: MapTestInviteState.UNREAD }
     });
     await tx.notification.deleteMany({
-      where: { type: NotificationType.MAP_TESTING_REQUEST, mapID: map.id }
+      where: { type: NotificationType.MAP_TEST_INVITE, mapID: map.id }
     });
   }
 

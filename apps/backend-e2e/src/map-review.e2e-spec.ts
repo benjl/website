@@ -318,7 +318,7 @@ describe('Map Reviews', () => {
         });
         notif = await prisma.notification.create({
           data: {
-            type: NotificationType.MAP_TESTING_REQUEST,
+            type: NotificationType.MAP_TEST_INVITE,
             targetUserID: map.submitterID,
             userID: review.reviewerID,
             mapID: map.id,

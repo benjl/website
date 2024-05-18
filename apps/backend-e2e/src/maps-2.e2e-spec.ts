@@ -2130,25 +2130,25 @@ describe('Maps Part 2', () => {
 
       it('should create map testing request notifications for users', async () => {
         await req.put({
-          url: `maps/${map.id}/testRequest`,
+          url: `maps/${map.id}/testInvite`,
           status: 204,
           body: { userIDs: [u3.id, u4.id] },
           token: u1Token
         });
 
         const notifs = await prisma.notification.findMany({
-          where: { type: NotificationType.MAP_TESTING_REQUEST }
+          where: { type: NotificationType.MAP_TEST_INVITE }
         });
         expect(notifs).toMatchObject([
           {
             targetUserID: u3.id,
-            type: NotificationType.MAP_TESTING_REQUEST,
+            type: NotificationType.MAP_TEST_INVITE,
             mapID: map.id,
             userID: map.submitterID
           },
           {
             targetUserID: u4.id,
-            type: NotificationType.MAP_TESTING_REQUEST,
+            type: NotificationType.MAP_TEST_INVITE,
             mapID: map.id,
             userID: map.submitterID
           }
@@ -2157,24 +2157,24 @@ describe('Maps Part 2', () => {
 
       it('should delete map testing request notifications if users are uninvited', async () => {
         await req.put({
-          url: `maps/${map.id}/testRequest`,
+          url: `maps/${map.id}/testInvite`,
           status: 204,
           body: { userIDs: [u3.id, u4.id] },
           token: u1Token
         });
         await req.put({
-          url: `maps/${map.id}/testRequest`,
+          url: `maps/${map.id}/testInvite`,
           status: 204,
           body: { userIDs: [u4.id] },
           token: u1Token
         });
         const notifs = await prisma.notification.findMany({
-          where: { type: NotificationType.MAP_TESTING_REQUEST }
+          where: { type: NotificationType.MAP_TEST_INVITE }
         });
         expect(notifs).toMatchObject([
           {
             targetUserID: u4.id,
-            type: NotificationType.MAP_TESTING_REQUEST,
+            type: NotificationType.MAP_TEST_INVITE,
             mapID: map.id,
             userID: map.submitterID
           }
@@ -2254,7 +2254,7 @@ describe('Maps Part 2', () => {
         await prisma.notification.create({
           data: {
             targetUserID: user.id,
-            type: NotificationType.MAP_TESTING_REQUEST,
+            type: NotificationType.MAP_TEST_INVITE,
             mapID: map.id,
             userID: map.submitterID
           }
@@ -2287,7 +2287,7 @@ describe('Maps Part 2', () => {
 
       it('should delete the notification corresponding to the testing request', async () => {
         await req.patch({
-          url: `maps/${map.id}/testRequestResponse`,
+          url: `maps/${map.id}/testInviteResponse`,
           status: 204,
           body: { accept: true },
           token

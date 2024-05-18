@@ -21,7 +21,7 @@ import {
   mapReviewAssetPath,
   MapStatus,
   MapSubmissionType,
-  MapTestingRequestState,
+  MapTestInviteState,
   NotificationType,
   ReportCategory,
   ReportType,
@@ -1005,10 +1005,7 @@ describe('Admin', () => {
         };
       });
 
-      afterAll(() =>
-        db.cleanup('leaderboardRun', 'user', 'adminActivity', 'notification')
-      );
-
+      afterAll(() => db.cleanup('leaderboardRun', 'user', 'adminActivity'));
       afterEach(() =>
         Promise.all([
           db.cleanup('mMap', 'adminActivity', 'notification'),
@@ -1370,17 +1367,17 @@ describe('Admin', () => {
       it('should delete pending test requests and their notifications changing from PRIVATE_TESTING to DISABLED', async () => {
         const map = await db.createMap({
           ...createMapData,
-          status: MapStatusNew.PRIVATE_TESTING,
-          testingRequests: {
+          status: MapStatus.PRIVATE_TESTING,
+          testInvites: {
             createMany: {
               data: [
                 {
                   userID: u2.id,
-                  state: MapTestingRequestState.UNREAD
+                  state: MapTestInviteState.UNREAD
                 },
                 {
                   userID: u3.id,
-                  state: MapTestingRequestState.ACCEPTED
+                  state: MapTestInviteState.ACCEPTED
                 }
               ]
             }
@@ -1389,7 +1386,7 @@ describe('Admin', () => {
         await prisma.notification.create({
           data: {
             targetUserID: u2.id,
-            type: NotificationType.MAP_TESTING_REQUEST,
+            type: NotificationType.MAP_TEST_INVITE,
             mapID: map.id,
             userID: map.submitterID
           }
@@ -1397,22 +1394,22 @@ describe('Admin', () => {
         await req.patch({
           url: `admin/maps/${map.id}`,
           status: 204,
-          body: { status: MapStatusNew.DISABLED },
+          body: { status: MapStatus.DISABLED },
           token: adminToken
         });
         const notifs = await prisma.notification.findMany({
           where: {
-            type: NotificationType.MAP_TESTING_REQUEST,
+            type: NotificationType.MAP_TEST_INVITE,
             mapID: map.id
           }
         });
         expect(notifs).toHaveLength(0);
         const updatedMap = await prisma.mMap.findUnique({
           where: { id: map.id },
-          include: { testingRequests: true }
+          include: { testInvites: true }
         });
-        expect(updatedMap.testingRequests).toMatchObject([
-          { userID: u3.id, state: MapTestingRequestState.ACCEPTED }
+        expect(updatedMap.testInvites).toMatchObject([
+          { userID: u3.id, state: MapTestInviteState.ACCEPTED }
         ]);
       });
 
