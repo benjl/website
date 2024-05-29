@@ -16,6 +16,7 @@ import { RunsModule } from './modules/runs/runs.module';
 import { StatsModule } from './modules/stats/stats.module';
 import { UserModule } from './modules/user/user.module';
 import { UsersModule } from './modules/users/users.module';
+import { RanksModule } from './modules/ranks/ranks.module';
 import { SessionModule } from './modules/session/session.module';
 import { XpSystemsModule } from './modules/xp-systems/xp-systems.module';
 import { MapReviewModule } from './modules/map-review/map-review.module';
@@ -90,7 +91,8 @@ import { DbModule } from './modules/database/db.module';
     UserModule,
     UsersModule,
     SessionModule,
-    XpSystemsModule
+    XpSystemsModule,
+    RanksModule
   ],
   providers: [
     {
